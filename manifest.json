@@ -1,0 +1,8 @@
+{
+  "name": "심학산 판매기록",
+  "short_name": "판매기록",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f6f2ee",
+  "theme_color": "#1f2a37"
+}
