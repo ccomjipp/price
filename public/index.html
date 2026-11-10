@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="판매기록">
+<meta name="theme-color" content="#1f2a37">
+<link rel="manifest" href="manifest.json">
+<title>심학산 판매기록</title>
+<style>
+  :root{--bg:#f6f2ee;--ink:#1f2a37;--accent:#e2735b;--muted:#7a7a7a;--card:#fff;--line:#e6dfd8;--ok:#2e7d32;--warn:#c0392b}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif;
+       padding:calc(env(safe-area-inset-top) + 10px) 14px calc(env(safe-area-inset-bottom) + 20px)}
+  header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  header h1{font-size:18px;margin:0;flex:1}
+  input{font:inherit;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#fff;color:var(--ink)}
+  input.notToday{border:2px solid var(--warn);background:#fdecea}
+  #place{width:100%;margin-bottom:8px}
+  #status{font-size:13px;padding:8px 10px;border-radius:10px;margin-bottom:10px;background:#fff;border:1px solid var(--line);cursor:pointer}
+  #status.ok{color:var(--ok)} #status.pend{color:#b26a00} #status.bad{color:#fff;background:var(--warn);border-color:var(--warn)}
+  .sum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+  .sum div{background:var(--ink);color:#fff;border-radius:12px;padding:10px;text-align:center}
+  .sum b{display:block;font-size:22px}
+  .sum span{font-size:12px;opacity:.8}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  button{font:inherit;border:0;border-radius:14px;cursor:pointer}
+  .item{background:var(--card);padding:14px 10px;min-height:84px;box-shadow:0 1px 0 var(--line);text-align:left;color:var(--ink)}
+  .item:active{transform:scale(.97);background:#fde9e3}
+  .item b{display:block;font-size:17px}
+  .item small{color:var(--muted);font-size:13px}
+  .item .p{color:var(--accent);font-weight:700;font-size:16px}
+  .wide{grid-column:1/-1;background:var(--accent);color:#fff}
+  .wide b,.wide small{color:#fff}
+  h2{font-size:15px;margin:18px 0 6px}
+  ul{list-style:none;padding:0;margin:0;background:#fff;border-radius:12px}
+  li{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);font-size:14px}
+  li:last-child{border:0}
+  li .t{color:var(--muted);width:44px}
+  li .n{flex:1}
+  li .a{font-weight:700}
+  li .s{font-size:12px}
+  li button{background:none;color:var(--warn);font-size:18px;padding:0 4px}
+  .empty{padding:14px;color:var(--muted);justify-content:center}
+  .bar{display:flex;gap:8px;margin-top:14px}
+  .bar button{flex:1;padding:12px;background:var(--ink);color:#fff}
+  .bar button.sec{background:#fff;color:var(--ink);border:1px solid var(--line)}
+  dialog{border:0;border-radius:16px;padding:18px;width:min(92vw,360px)}
+  dialog::backdrop{background:rgba(0,0,0,.4)}
+  .row{display:flex;align-items:center;justify-content:space-between;margin:10px 0}
+  .step{display:flex;align-items:center;gap:10px}
+  .step button{width:44px;height:44px;background:var(--bg);font-size:22px}
+  .step output{min-width:28px;text-align:center;font-size:20px;font-weight:700}
+  #amt{width:130px;text-align:right;font-size:18px}
+  #toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 20px);transform:translateX(-50%);
+         background:var(--ink);color:#fff;padding:10px 14px;border-radius:12px;display:none;gap:12px;align-items:center;z-index:9;white-space:nowrap}
+  #toast button{background:var(--accent);color:#fff;padding:6px 10px;border-radius:8px}
+</style>
+</head>
+<body>
+<header>
+  <h1>심학산 판매기록</h1>
+  <input type="date" id="day">
+</header>
+<input id="place" placeholder="장소 (예: 롱런마켓)">
+<div id="status">확인 중…</div>
+
+<div class="sum">
+  <div><b id="s500">0</b><span>500ml</span></div>
+  <div><b id="s190">0</b><span>190ml</span></div>
+  <div><b id="sAmt">0</b><span>매출(원)</span></div>
+</div>
+
+<div class="grid" id="menu"></div>
+
+<h2>거래 내역 <small id="cnt"></small></h2>
+<ul id="list"></ul>
+
+<div class="bar">
+  <button id="share">CSV 내보내기</button>
+  <button class="sec" id="copy">복사</button>
+</div>
+
+<dialog id="dlg">
+  <h3 style="margin:0 0 6px">직접 입력</h3>
+  <div class="row"><span>500ml</span><div class="step"><button data-k="a" data-d="-1">−</button><output id="oa">0</output><button data-k="a" data-d="1">+</button></div></div>
+  <div class="row"><span>190ml</span><div class="step"><button data-k="b" data-d="-1">−</button><output id="ob">0</output><button data-k="b" data-d="1">+</button></div></div>
+  <div class="row"><span>받은 금액</span><input id="amt" type="number" inputmode="numeric"></div>
+  <div class="bar"><button class="sec" id="cancel">취소</button><button id="ok">기록</button></div>
+</dialog>
+
+<div id="toast"><span id="tmsg"></span><button id="undo">취소</button></div>
+
+<script>
+/* ───── 설정 ───── */
+const P500 = 7000, P190 = 4000;
+const MENU = [
+  {n:"500ml 단품",   a:1, b:0, p:7000},
+  {n:"190ml 단품",   a:0, b:1, p:4000},
+  {n:"오빠와 함께",   a:1, b:1, p:10000},
+  {n:"반주는 가볍게", a:0, b:3, p:10000},
+  {n:"둘이 함께",     a:3, b:0, p:20000},
+  {n:"회식하는 날",   a:5, b:0, p:30000},
+];
+const API = "/api/sales";
+const KEY = "simhak_pos_v2", TKEY = "simhak_pos_token";
+
+/* ───── 공통 ───── */
+const $ = id => document.getElementById(id);
+const won = n => n.toLocaleString('ko-KR');
+const pad = n => String(n).padStart(2,'0');
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+const newId = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
+
+/* ───── 기기 저장(오프라인 버퍼) ─────
+   db[날짜] = {place, placeSynced, tx:[{id,time,n,a,b,p,synced,deleted}]}
+   - synced:false  → 아직 서버에 안 올라감
+   - deleted:true  → 지웠지만 서버 삭제가 아직 안 됨(올라간 뒤 목록에서 제거) */
+let storageOK = true;
+let db = {};
+try { localStorage.setItem("__t","1"); localStorage.removeItem("__t");
+      db = JSON.parse(localStorage.getItem(KEY)) || {};
+      // v1(첫 버전) 기록이 있으면 가져온다
+      const old = JSON.parse(localStorage.getItem("simhak_pos_v1") || "null");
+      if (old) { for (const [d, D] of Object.entries(old)) {
+          const cur = db[d] || (db[d] = {place: D.place || "", placeSynced: false, tx: []});
+          for (const t of D.tx || []) cur.tx.push({...t, id: newId(), synced: false, deleted: false});
+        }
+        localStorage.setItem(KEY, JSON.stringify(db)); localStorage.removeItem("simhak_pos_v1"); }
+} catch (e) { storageOK = false; }
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(db)); }
+                     catch (e) { storageOK = false; status(); } };
+const dayData = (d = $('day').value) => db[d] || (db[d] = {place: "", placeSynced: true, tx: []});
+const visible = D => D.tx.filter(t => !t.deleted);
+let token = ""; try { token = localStorage.getItem(TKEY) || ""; } catch (e) {}
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(()=>{});
+
+/* ───── 서버 동기화 ───── */
+let serverState = "unknown";   // ok | offline | noserver | auth | error
+let lastSync = null, syncing = false;
+
+async function api(method, qs = "", body) {
+  const r = await fetch(API + qs, {
+    method, headers: {"content-type": "application/json", "x-sales-token": token},
+    body: body ? JSON.stringify(body) : undefined, cache: "no-store"
+  });
+  if (r.status === 404) { const e = new Error("noserver"); e.kind = "noserver"; throw e; }
+  if (r.status === 401) { const e = new Error("auth"); e.kind = "auth"; throw e; }
+  if (!r.ok) { const e = new Error("http " + r.status); e.kind = "error"; throw e; }
+  return r.json();
+}
+
+async function sync() {
+  if (syncing) return;
+  if (!token) { serverState = "auth"; status(); return; }
+  if (!navigator.onLine) { serverState = "offline"; status(); return; }
+  syncing = true;
+  try {
+    for (const [d, D] of Object.entries(db)) {
+      // 1) 지운 것 서버에서 삭제
+      for (const t of D.tx.filter(t => t.deleted && t.synced)) {
+        await api("DELETE", `?date=${d}&id=${encodeURIComponent(t.id)}`); t.synced = false;
+      }
+      D.tx = D.tx.filter(t => !t.deleted);   // 서버에 없던 것은 그냥 버린다
+      // 2) 안 올라간 것 올리기
+      const pend = D.tx.filter(t => !t.synced);
+      if (pend.length || !D.placeSynced) {
+        const res = await api("POST", "", {date: d, place: D.place, tx: pend});
+        const ok = new Set(res.saved);
+        pend.forEach(t => { if (ok.has(t.id)) t.synced = true; });
+        D.placeSynced = true;
+      }
+      save();
+    }
+    // 3) 보고 있는 날짜는 서버 기록을 받아 합친다(다른 기기·잃어버린 기록 복구)
+    const d = $('day').value, D = dayData(d);
+    const srv = await api("GET", `?date=${d}`);
+    const have = new Set(D.tx.map(t => t.id));
+    for (const t of srv.tx) if (!have.has(t.id)) D.tx.push({...t, synced: true, deleted: false});
+    D.tx.sort((x, y) => x.time.localeCompare(y.time));
+    if (!D.place && srv.place) D.place = srv.place;
+    save();
+    serverState = "ok"; lastSync = new Date();
+  } catch (e) {
+    serverState = e.kind || "offline";   // 네트워크 실패(fetch 예외)는 오프라인으로 본다
+  } finally { syncing = false; render(); }
+}
+
+/* ───── 화면 ───── */
+function status() {
+  const el = $('status');
+  const pend = Object.values(db).reduce((s, D) => s + D.tx.filter(t => !t.synced || t.deleted).length, 0);
+  let cls = "pend", msg;
+  if (!storageOK) { cls = "bad"; msg = "⚠ 이 브라우저에서는 기기 저장이 안 됩니다. 개인정보 보호 모드인지 확인하세요."; }
+  else if (serverState === "ok" && !pend) { cls = "ok"; msg = `☁ 서버 저장 완료 · ${lastSync ? pad(lastSync.getHours())+":"+pad(lastSync.getMinutes()) : ""}`; }
+  else if (serverState === "auth") { cls = "bad"; msg = `🔑 토큰을 입력해야 서버에 저장됩니다 (탭해서 입력) · 미전송 ${pend}건`; }
+  else if (serverState === "noserver") { msg = `📱 서버 없음 — 기기에만 저장 · 미전송 ${pend}건`; }
+  else if (serverState === "offline") { msg = `📴 오프라인 — 기기에 저장됨, 연결되면 자동 전송 · 미전송 ${pend}건`; }
+  else if (serverState === "error") { cls = "bad"; msg = `⚠ 서버 오류 — 기기에 저장됨 · 미전송 ${pend}건 (탭해서 재시도)`; }
+  else { msg = pend ? `⏳ 전송 대기 ${pend}건` : "확인 중…"; }
+  el.className = cls; el.textContent = msg;
+}
+
+function render() {
+  const D = dayData();
+  $('place').value = D.place || "";
+  $('day').classList.toggle('notToday', $('day').value !== today());
+  let a = 0, b = 0, s = 0;
+  const L = $('list'); L.innerHTML = "";
+  const tx = visible(D);
+  [...tx].reverse().forEach(t => {
+    a += t.a; b += t.b; s += t.p;
+    const li = document.createElement('li');
+    li.innerHTML = `<span class="t">${t.time}</span><span class="n">${t.n}<br><small style="color:#7a7a7a">500×${t.a} · 190×${t.b}</small></span>`+
+                   `<span class="a">${won(t.p)}</span><span class="s">${t.synced ? "☁" : "⏳"}</span><button aria-label="삭제">✕</button>`;
+    li.querySelector('button').onclick = () => { if (confirm(`${t.time} ${t.n} ${won(t.p)}원 삭제할까요?`)) remove(t.id); };
+    L.appendChild(li);
+  });
+  if (!tx.length) L.innerHTML = '<li class="empty">아직 기록이 없습니다</li>';
+  $('s500').textContent = a; $('s190').textContent = b; $('sAmt').textContent = won(s);
+  $('cnt').textContent = tx.length ? `${tx.length}건` : "";
+  status();
+}
+
+function remove(id) {
+  const D = dayData(), t = D.tx.find(x => x.id === id);
+  if (!t) return;
+  t.deleted = true;   // 서버 전송 중일 수도 있으므로 표시만 하고, 정리는 sync()가 한다
+  save(); render(); sync();
+}
+
+let toastTimer, lastId = null;
+function add(n, a, b, p) {
+  const D = dayData(), d = new Date();
+  const t = {id: newId(), time: `${pad(d.getHours())}:${pad(d.getMinutes())}`, n, a, b, p, synced: false, deleted: false};
+  D.tx.push(t); lastId = t.id;
+  save(); render(); sync();
+  if (navigator.vibrate) navigator.vibrate(30);
+  $('tmsg').textContent = `${n} ${won(p)}원 기록`;
+  $('toast').style.display = 'flex';
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').style.display = 'none', 4000);
+}
+$('undo').onclick = () => { if (lastId) remove(lastId); lastId = null; $('toast').style.display = 'none'; };
+
+MENU.forEach(m => {
+  const bt = document.createElement('button'); bt.className = 'item';
+  bt.innerHTML = `<b>${m.n}</b><small>500×${m.a} · 190×${m.b}</small><div class="p">${won(m.p)}원</div>`;
+  bt.onclick = () => add(m.n, m.a, m.b, m.p);
+  $('menu').appendChild(bt);
+});
+const custom = document.createElement('button'); custom.className = 'item wide';
+custom.innerHTML = '<b>직접 입력</b><small>병수·금액 직접 지정</small>';
+$('menu').appendChild(custom);
+
+let ca = 0, cb = 0, amtEdited = false;
+const upd = () => { $('oa').textContent = ca; $('ob').textContent = cb; if (!amtEdited) $('amt').value = ca*P500 + cb*P190; };
+custom.onclick = () => { ca = 0; cb = 0; amtEdited = false; upd(); $('dlg').showModal(); };
+document.querySelectorAll('.step button').forEach(x => x.onclick = () => {
+  const d = +x.dataset.d; if (x.dataset.k === 'a') ca = Math.max(0, ca+d); else cb = Math.max(0, cb+d); upd(); });
+$('amt').oninput = () => amtEdited = true;
+$('cancel').onclick = () => $('dlg').close();
+$('ok').onclick = () => { const p = parseInt($('amt').value, 10) || 0;
+  if (!ca && !cb) { alert("병수를 입력하세요"); return; } add("직접", ca, cb, p); $('dlg').close(); };
+
+let placeTimer;
+$('place').oninput = e => { const D = dayData(); D.place = e.target.value; D.placeSynced = false; save();
+  clearTimeout(placeTimer); placeTimer = setTimeout(sync, 1500); };
+$('day').value = today();
+$('day').onchange = () => { render(); sync(); };
+
+$('status').onclick = () => {
+  if (serverState === "auth" || serverState === "ok") {
+    const v = prompt("서버 토큰 (Netlify의 SALES_TOKEN 값)", token);
+    if (v !== null) { token = v.trim(); try { localStorage.setItem(TKEY, token); } catch (e) {} }
+  }
+  sync();
+};
+
+/* ───── 내보내기 ───── */
+function csv() {
+  const d = $('day').value, D = dayData();
+  const esc = s => /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
+  return "날짜,시각,장소,메뉴,500ml,190ml,금액\n" +
+    visible(D).map(t => [d, t.time, esc(D.place || ""), esc(t.n), t.a, t.b, t.p].join(",")).join("\n") + "\n";
+}
+$('copy').onclick = async () => { try { await navigator.clipboard.writeText(csv()); alert("복사했습니다"); } catch (e) { prompt("아래 내용을 복사하세요", csv()); } };
+$('share').onclick = async () => {
+  const name = `현장판매_${$('day').value}.csv`;
+  const file = new File(["﻿" + csv()], name, {type: "text/csv"});
+  try { if (navigator.canShare && navigator.canShare({files: [file]})) { await navigator.share({files: [file], title: name}); return; } }
+  catch (e) { if (e.name === "AbortError") return; }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = name; a.click();
+};
+
+/* ───── 시작 ───── */
+render();
+sync();
+window.addEventListener('online', sync);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { render(); sync(); } });
+setInterval(sync, 30000);
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
