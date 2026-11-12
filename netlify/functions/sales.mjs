@@ -5,7 +5,7 @@
 //   POST   /api/sales   {date, place?, tx:[…]}  → 거래 저장(같은 id면 덮어씀)
 //   DELETE /api/sales?date=YYYY-MM-DD&id=…      → 거래 1건 삭제
 //
-// 모든 요청은 헤더 x-sales-token 이 환경변수 SALES_TOKEN 과 같아야 한다.
+// 토큰 없이 누구나 호출할 수 있다(주소를 아는 사람은 기록·삭제 가능).
 // 저장 키:  tx/<날짜>/<거래id>  ,  meta/<날짜>
 
 import { getStore } from "@netlify/blobs";
@@ -18,8 +18,6 @@ const json = (body, status = 200) =>
     status,
     headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
   });
-
-const env = (k) => (globalThis.Netlify?.env?.get(k)) ?? process.env[k];
 
 function cleanTx(t, date) {
   const int = (v) => Math.max(0, Math.trunc(Number(v) || 0));
@@ -45,10 +43,6 @@ async function readDay(store, date) {
 }
 
 export default async (req) => {
-  const token = env("SALES_TOKEN");
-  if (!token) return json({ error: "서버에 SALES_TOKEN 이 설정되지 않았습니다" }, 500);
-  if (req.headers.get("x-sales-token") !== token) return json({ error: "토큰이 맞지 않습니다" }, 401);
-
   const store = getStore({ name: "sales", consistency: "strong" });
   const url = new URL(req.url);
 

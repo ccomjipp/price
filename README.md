@@ -23,15 +23,14 @@ package.json            @netlify/blobs
 
 1. Netlify 로그인 → **Add new project → Import an existing project → GitHub** → `price` 저장소 선택
 2. 빌드 설정은 `netlify.toml`을 그대로 사용(Build command 비움, Publish `public`) → **Deploy**
-3. **Project configuration → Environment variables → Add a variable**
-   - Key: `SALES_TOKEN` / Value: 직접 정한 긴 비밀번호
-   - 추가 후 **Deploys → Trigger deploy → Deploy project** 로 다시 배포
-4. 폰 Safari로 `https://<사이트이름>.netlify.app` 접속 → 상단 상태줄을 탭해 토큰 입력
-5. 공유 → **홈 화면에 추가** → 이후 홈 화면 아이콘으로만 사용
+3. 폰 Safari로 `https://<사이트이름>.netlify.app` 접속
+4. 공유 → **홈 화면에 추가** → 이후 홈 화면 아이콘으로만 사용
+
+> 토큰 없이 동작한다. 사이트 주소를 아는 사람은 기록·삭제할 수 있으므로 주소를 공유하지 않는다.
 
 ## API
 
-모든 요청에 헤더 `x-sales-token: <SALES_TOKEN>` 필요.
+인증 없음.
 
 | 요청 | 설명 |
 |---|---|

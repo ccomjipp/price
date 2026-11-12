@@ -104,7 +104,7 @@ const MENU = [
   {n:"회식하는 날",   a:5, b:0, p:30000},
 ];
 const API = "/api/sales";
-const KEY = "simhak_pos_v2", TKEY = "simhak_pos_token";
+const KEY = "simhak_pos_v2";
 
 /* ───── 공통 ───── */
 const $ = id => document.getElementById(id);
@@ -133,27 +133,24 @@ const save = () => { try { localStorage.setItem(KEY, JSON.stringify(db)); }
                      catch (e) { storageOK = false; status(); } };
 const dayData = (d = $('day').value) => db[d] || (db[d] = {place: "", placeSynced: true, tx: []});
 const visible = D => D.tx.filter(t => !t.deleted);
-let token = ""; try { token = localStorage.getItem(TKEY) || ""; } catch (e) {}
 if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(()=>{});
 
 /* ───── 서버 동기화 ───── */
-let serverState = "unknown";   // ok | offline | noserver | auth | error
+let serverState = "unknown";   // ok | offline | noserver | error
 let lastSync = null, syncing = false;
 
 async function api(method, qs = "", body) {
   const r = await fetch(API + qs, {
-    method, headers: {"content-type": "application/json", "x-sales-token": token},
+    method, headers: {"content-type": "application/json"},
     body: body ? JSON.stringify(body) : undefined, cache: "no-store"
   });
   if (r.status === 404) { const e = new Error("noserver"); e.kind = "noserver"; throw e; }
-  if (r.status === 401) { const e = new Error("auth"); e.kind = "auth"; throw e; }
   if (!r.ok) { const e = new Error("http " + r.status); e.kind = "error"; throw e; }
   return r.json();
 }
 
 async function sync() {
   if (syncing) return;
-  if (!token) { serverState = "auth"; status(); return; }
   if (!navigator.onLine) { serverState = "offline"; status(); return; }
   syncing = true;
   try {
@@ -194,7 +191,6 @@ function status() {
   let cls = "pend", msg;
   if (!storageOK) { cls = "bad"; msg = "⚠ 이 브라우저에서는 기기 저장이 안 됩니다. 개인정보 보호 모드인지 확인하세요."; }
   else if (serverState === "ok" && !pend) { cls = "ok"; msg = `☁ 서버 저장 완료 · ${lastSync ? pad(lastSync.getHours())+":"+pad(lastSync.getMinutes()) : ""}`; }
-  else if (serverState === "auth") { cls = "bad"; msg = `🔑 토큰을 입력해야 서버에 저장됩니다 (탭해서 입력) · 미전송 ${pend}건`; }
   else if (serverState === "noserver") { msg = `📱 서버 없음 — 기기에만 저장 · 미전송 ${pend}건`; }
   else if (serverState === "offline") { msg = `📴 오프라인 — 기기에 저장됨, 연결되면 자동 전송 · 미전송 ${pend}건`; }
   else if (serverState === "error") { cls = "bad"; msg = `⚠ 서버 오류 — 기기에 저장됨 · 미전송 ${pend}건 (탭해서 재시도)`; }
@@ -269,13 +265,7 @@ $('place').oninput = e => { const D = dayData(); D.place = e.target.value; D.pla
 $('day').value = today();
 $('day').onchange = () => { render(); sync(); };
 
-$('status').onclick = () => {
-  if (serverState === "auth" || serverState === "ok") {
-    const v = prompt("서버 토큰 (Netlify의 SALES_TOKEN 값)", token);
-    if (v !== null) { token = v.trim(); try { localStorage.setItem(TKEY, token); } catch (e) {} }
-  }
-  sync();
-};
+$('status').onclick = () => sync();   // 탭하면 즉시 재전송
 
 /* ───── 내보내기 ───── */
 function csv() {
